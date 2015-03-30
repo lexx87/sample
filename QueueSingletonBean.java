@@ -76,8 +76,8 @@ public class QueueSingletonBean implements Serializable {
     @Inject
     private Event<OneMinuteEvent> oneMinuteService;
 
-    //Флаг выставляется при любом событии, связанным с посетителем
-    private boolean visitorEventFlag = false;
+    
+    private boolean visitorEventFlag = false; //Флаг выставляется при любом событии, связанным с посетителем
     private Date lastCheckAppointmentDate; // Дата последнего вызова метода lastCheckAppointmentEvents
 
     @PostConstruct
@@ -99,10 +99,9 @@ public class QueueSingletonBean implements Serializable {
             } else {
                 closeDayService.fire(new CloseDayEvent());
             }
-        }
-        // Проверка активности подразделений
+        }      
         Calendar currentCalendar = getInstance();
-        oneMinuteService.fire(new OneMinuteEvent(currentCalendar, true));
+        oneMinuteService.fire(new OneMinuteEvent(currentCalendar, true));   // Проверка активности подразделений
     }
 
     @PreDestroy
@@ -269,8 +268,7 @@ public class QueueSingletonBean implements Serializable {
             if (testAppointment && (!workplace.equals(testWorkplace) || !workplace.getAlgorithm().equals(visitorEvent.getTestAlgorithm()))) {
                 //Тестируем только нужный алгоритм
                 continue;
-            }
-            //А это уже списки посетителей в текущее РО
+            }           
             List<Visitor> freeVisitorList = new ArrayList<>();
             List<Visitor> workplaceVisitorList = new ArrayList<>();
             List<Visitor> appointmentVisitorList = new ArrayList<>();
@@ -489,8 +487,7 @@ public class QueueSingletonBean implements Serializable {
                     }
                 }
             }
-            //Сгенерируем водяной знак для текущей смены
-            //Для круглосуточной это бесполезное занятие
+            //Сгенерируем водяной знак для текущей смены           
             if(!aroundTheClock) {
                 generateWaterMark(currentSchedule);
             }
@@ -528,7 +525,6 @@ public class QueueSingletonBean implements Serializable {
     public Workplace registerEmployee(Employee employee, Workplace workplace) {
         //Если рабочее окружение было до этого зарегистрировано - освобождаем
         unregisterWorkplace(workplace);
-
         //Если этот же пользователь зарегистрирован на другой машине, то его надо там разлогинить
         Workplace existedEmployeeActiveWorkplace = null;
         for (Workplace activeWorkplace : queueDataBean.getActiveWorkplaceList()) {
@@ -802,7 +798,6 @@ public class QueueSingletonBean implements Serializable {
             visitorService.fire(new VisitorEvent(visitor, visitor.getCurrentWorkplace(), "", getCurrentEmployee(visitor.getCurrentWorkplace())));
             coreBean.logVisitorStatusChanges(visitor, currentEmployee);
             // сбросим список отложенных
-
             visitor.setCompleteDate(new Date());
             visitor.setNextService(nextAppointment.getService());
             if (nextAppointment.getWorkplace() != null) {
@@ -819,13 +814,7 @@ public class QueueSingletonBean implements Serializable {
                 visitor = coreBean.saveEntity(visitor);
                 queueDataBean.getActiveVisitorList().remove(visitor);
             }
-        } else {
-            // чтобы дороги посетителя не разделились на два направления 
-            // (по авторезервированию услуги nextAppointment и перевод по завершению приема)
-            // - перевод будем делать только если нет следующего этапа по nextAppointment
-
-            // Если в услуге задано направление дальнейшего перевода и установлена галочка - 
-            // по завершению, автоматически переводить на следующую услугу
+        } else {          
             if (currentService.getAutoRedirectService(applicationState.getLocalDepartment()) != null) {
                 try {
                     Employee currentEmployee = getCurrentEmployee(visitor.getCurrentWorkplace());
@@ -930,7 +919,6 @@ public class QueueSingletonBean implements Serializable {
         // и поставили его в список отложенных в новом рабочем окружении
         //отмечаем, что на старом рабочем окружении никто не вызван
         setCurrentVisitorForWorkplace(visitor.getCurrentWorkplace(), null);
-
         //повторный вызов немедленно (после освобождения оператора)
         // прописываем новое рабочее окружение
         visitor.setCurrentWorkplace(workplace);
@@ -967,7 +955,6 @@ public class QueueSingletonBean implements Serializable {
         // отмечаем что в рабочем окружении обслужили посетителя
         coreBean.logVisitorStatusChanges(visitor, currentEmployee);
         // и поставили его в список по новой услуге
-
         visitor.setNextService(newService);
         visitor.setCompleteDate(new Date());
         visitor.setCurrentWorkplace(null);
@@ -1023,12 +1010,10 @@ public class QueueSingletonBean implements Serializable {
         coreBean.logVisitorStatusChanges(visitor, currentEmployee);
         Service currentService = visitor.getNextService();
         visitor.setNextService((Service) visitor.getNextService().getServiceHoldover(applicationState.getLocalDepartment()).getServiceTo());
-
         // если не обслуживает - то предоставим право всем прочим рабочим окружениям обслужить отложенного посетителя
         if (!currentWorkplaceProvidedService) {
             visitor.setCurrentWorkplace(null);
         }
-
         visitor = coreBean.saveEntity(visitor);
         //Утанавливаем транзиентные поля для активного посетителя
         visitor.getProcess().setDelayServiceFrom(null);
@@ -1044,7 +1029,6 @@ public class QueueSingletonBean implements Serializable {
             }
         }
         updateActiveVisitor(visitor, false);
-
 //        coreBean.logVisitorStatusChanges(visitor, OperationType.HOLDOVER, currentEmployee);
         visitorService.fire(new VisitorEvent(visitor, workplace, "", getCurrentEmployee(workplace)));
 
@@ -1073,9 +1057,6 @@ public class QueueSingletonBean implements Serializable {
                     && visitor.getTicketNumber() != null && (!visitor.isAppointmentVisitor()
                     || (scheduleDateFrom.before(visitor.getParentAppointment().getDatetimeFrom()) && scheduleDateTo.after(visitor.getParentAppointment().getDatetimeFrom())))) {
                 queueDataBean.getActiveVisitorList().add(visitor);
-//                if (visitor.getWorkplace() != null) {
-//                    visitor.setWorkplace(this.getActiveWorkplace(visitor.getWorkplace()));
-//                }
                 if (fireVisitorEvent) {
                     visitorService.fire(new VisitorEvent(visitor, null, visitor.getTicketNumber(), null));
                 }
@@ -1109,16 +1090,6 @@ public class QueueSingletonBean implements Serializable {
             visitorService.fire(new VisitorEvent(visitor, visitor.getCurrentWorkplace(), "", null));
         }
 
-    }
-
-    /**
-     * Т.к. передаем наружу чтобы не заморачиваться там с синхроинизацией -
-     * копируем
-     *
-     * @return
-     */
-    public List<Visitor> getActiveVisitorList() {
-        return (List<Visitor>) queueDataBean.getActiveVisitorList().clone();
     }
 
     /**
